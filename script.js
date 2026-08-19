@@ -1,6 +1,6 @@
 console.log("✅ script.js carregou");
 
-const API_BASE = "https://automo-o-com-ia-para-post-no-intagram.onrender.com";
+const API_BASE = window.location.origin;
 
 function $(id) {
   return document.getElementById(id);
@@ -55,27 +55,19 @@ document.addEventListener("DOMContentLoaded", () => {
     if (storyDescription) storyDescription.textContent = descInput?.value || "Descrição";
     if (storyContact) storyContact.textContent = contactInput?.value || "@assessoriaimobiliaria";
     if (storyFeatures) {
-  const selected = [...featureInputs]
-    .filter(item => item.checked)
-    .map(item => item.value);
+      const selected = [...featureInputs]
+        .filter(item => item.checked)
+        .map(item => item.value);
 
-  storyFeatures.innerHTML = selected
-    .slice(0,4)
-    .map(item => `<span>${item}</span>`)
-    .join("");
-  }
+      storyFeatures.innerHTML = selected
+        .slice(0,4)
+        .map(item => `<span>${item}</span>`)
+        .join("");
+    }
   }
 
-  [
-    badgeInput,
-    titleInput,
-    priceInput,
-    cityInput,
-    districtInput,
-    areaInput,
-    descInput,
-    contactInput,
-  ].forEach((el) => el && el.addEventListener("input", updatePreviewText));
+  [badgeInput, titleInput, priceInput, cityInput, districtInput, areaInput, descInput, contactInput]
+    .forEach((el) => el && el.addEventListener("input", updatePreviewText));
 
   updatePreviewText();
 
@@ -116,17 +108,14 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!file || !storyImage) return;
 
     const reader = new FileReader();
-
     reader.onload = (ev) => {
       storyImage.crossOrigin = "anonymous";
       storyImage.src = ev.target.result;
       storyImage.classList.remove("hidden");
       applyImageSettings();
-
       LAST_STORY_BLOB = null;
       LAST_STORY_CREATED_AT = 0;
     };
-
     reader.readAsDataURL(file);
   });
 
@@ -135,19 +124,15 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!file) return;
 
     const reader = new FileReader();
-
     reader.onload = (ev) => {
       const img = $("story-logo-preview");
       if (!img) return;
-
       img.crossOrigin = "anonymous";
       img.src = ev.target.result;
       img.classList.remove("hidden");
-
       LAST_STORY_BLOB = null;
       LAST_STORY_CREATED_AT = 0;
     };
-
     reader.readAsDataURL(file);
   });
 
@@ -165,19 +150,16 @@ document.addEventListener("DOMContentLoaded", () => {
       });
 
       const data = await res.json().catch(() => ({}));
-
       if (!res.ok) {
         console.error("Backend erro:", data);
         return alert(data?.erro || "Erro no backend");
       }
-
       if (!data.imagem) return alert("Não veio imagem do backend.");
 
       storyImage.crossOrigin = "anonymous";
       storyImage.src = data.imagem;
       storyImage.classList.remove("hidden");
       applyImageSettings();
-
       LAST_STORY_BLOB = null;
       LAST_STORY_CREATED_AT = 0;
     } catch (err) {
@@ -197,10 +179,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
   async function waitForImages(container, timeoutMs = 6000) {
     const imgs = [...container.querySelectorAll("img")].filter((img) => img.src);
-
     const perImgPromises = imgs.map((img) => {
       if (img.complete && img.naturalWidth > 0) return Promise.resolve();
-
       return withTimeout(
         new Promise((resolve) => {
           const done = () => resolve();
@@ -213,7 +193,6 @@ document.addEventListener("DOMContentLoaded", () => {
         console.warn("⚠️ Imagem travou e foi ignorada:", String(img.src).slice(0, 140));
       });
     });
-
     await Promise.all(perImgPromises);
   }
 
@@ -225,7 +204,6 @@ document.addEventListener("DOMContentLoaded", () => {
         el.style.setProperty("filter", "none", "important");
         el.style.setProperty("clip-path", "none", "important");
       });
-
       const blur = root.querySelector("#story-bg-blur");
       if (blur) blur.remove();
     } catch (e) {
@@ -234,17 +212,10 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   async function gerarStoryPngDataUrl() {
-    if (typeof domtoimage === "undefined") {
-      throw new Error("domtoimage não carregou.");
-    }
-
+    if (typeof domtoimage === "undefined") throw new Error("domtoimage não carregou.");
     const story = $("story-preview-wrapper");
     if (!story) throw new Error("Não achei #story-preview-wrapper no HTML.");
-
-    if (document.fonts?.ready) {
-      await withTimeout(document.fonts.ready, 6000, "fontes");
-    }
-
+    if (document.fonts?.ready) await withTimeout(document.fonts.ready, 6000, "fontes");
     await waitForImages(story, 6000);
 
     const dataUrl = await withTimeout(
@@ -256,21 +227,13 @@ document.addEventListener("DOMContentLoaded", () => {
           const clonedStory = clonedDoc.getElementById("story-preview-wrapper");
           if (clonedStory) stripHeavyCssForExport(clonedStory);
         },
-        style: {
-          transform: "none",
-          width: "1080px",
-          height: "1920px",
-          overflow: "hidden",
-        },
+        style: { transform: "none", width: "1080px", height: "1920px", overflow: "hidden" },
       }),
       20000,
       "geração do PNG"
     );
 
-    if (!dataUrl || !dataUrl.startsWith("data:image/png")) {
-      throw new Error("PNG inválido.");
-    }
-
+    if (!dataUrl || !dataUrl.startsWith("data:image/png")) throw new Error("PNG inválido.");
     return dataUrl;
   }
 
@@ -285,38 +248,25 @@ document.addEventListener("DOMContentLoaded", () => {
   downloadBtn?.addEventListener("click", async (e) => {
     e.preventDefault();
     e.stopPropagation();
-
     try {
       let handle = null;
-
       if (window.showSaveFilePicker) {
         handle = await window.showSaveFilePicker({
           suggestedName: "story-assessoria-imobiliaria-1080x1920.png",
-          types: [
-            {
-              description: "PNG Image",
-              accept: { "image/png": [".png"] },
-            },
-          ],
+          types: [{ description: "PNG Image", accept: { "image/png": [".png"] } }],
         });
       }
-
       const dataUrl = await gerarStoryPngDataUrl();
       const blob = await dataUrlToBlob(dataUrl);
-
       if (handle) {
         const writable = await handle.createWritable();
         await writable.write(blob);
         await writable.close();
         return;
       }
-
       const w = window.open("about:blank", "_blank");
-      if (w) {
-        w.location.href = dataUrl;
-      } else {
-        alert("Pop-up bloqueado. Permita pop-ups no navegador.");
-      }
+      if (w) w.location.href = dataUrl;
+      else alert("Pop-up bloqueado. Permita pop-ups no navegador.");
     } catch (err) {
       console.error(err);
       alert("Falhou ao baixar PNG: " + (err?.message || err));
@@ -326,26 +276,17 @@ document.addEventListener("DOMContentLoaded", () => {
   postBtn?.addEventListener("click", async (e) => {
     e.preventDefault();
     e.stopPropagation();
-
     try {
       if (!isMobile()) {
         let handle = null;
-
         if (window.showSaveFilePicker) {
           handle = await window.showSaveFilePicker({
             suggestedName: "story-assessoria-imobiliaria-1080x1920.png",
-            types: [
-              {
-                description: "PNG Image",
-                accept: { "image/png": [".png"] },
-              },
-            ],
+            types: [{ description: "PNG Image", accept: { "image/png": [".png"] } }],
           });
         }
-
         const dataUrl = await gerarStoryPngDataUrl();
         const blob = await dataUrlToBlob(dataUrl);
-
         if (handle) {
           const writable = await handle.createWritable();
           await writable.write(blob);
@@ -354,7 +295,6 @@ document.addEventListener("DOMContentLoaded", () => {
           const w = window.open("about:blank", "_blank");
           if (w) w.location.href = dataUrl;
         }
-
         window.open("https://www.instagram.com/", "_blank");
         alert("PNG salvo. No Instagram: Criar → Story → escolher o arquivo.");
         return;
@@ -362,30 +302,19 @@ document.addEventListener("DOMContentLoaded", () => {
 
       const now = Date.now();
       const blobFresh = LAST_STORY_BLOB && now - LAST_STORY_CREATED_AT < 120000;
-
       if (blobFresh && navigator.share && navigator.canShare) {
-        const file = new File([LAST_STORY_BLOB], "story-assessoria-imobiliaria.png", {
-          type: "image/png",
-        });
-
+        const file = new File([LAST_STORY_BLOB], "story-assessoria-imobiliaria.png", { type: "image/png" });
         if (navigator.canShare({ files: [file] })) {
-          await navigator.share({
-            files: [file],
-            title: "Story - Assessoria Imobiliária",
-            text: "Postar no Instagram Stories",
-          });
+          await navigator.share({ files: [file], title: "Story - Assessoria Imobiliária", text: "Postar no Instagram Stories" });
           return;
         }
       }
 
       alert("Gerando o arquivo… quando terminar, clique de novo em 'Postar no Story'.");
-
       const dataUrl = await gerarStoryPngDataUrl();
       const blob = await dataUrlToBlob(dataUrl);
-
       LAST_STORY_BLOB = blob;
       LAST_STORY_CREATED_AT = Date.now();
-
       alert("✅ Pronto! Clique de novo em 'Postar no Story' para abrir o compartilhar.");
     } catch (err) {
       console.error(err);
