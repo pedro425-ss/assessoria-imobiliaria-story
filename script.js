@@ -13,6 +13,11 @@ function isMobile() {
   return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 }
 
+function invalidateStoryCache() {
+  LAST_STORY_BLOB = null;
+  LAST_STORY_CREATED_AT = 0;
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   console.log("✅ DOMContentLoaded - registrando eventos");
 
@@ -49,43 +54,47 @@ document.addEventListener("DOMContentLoaded", () => {
     if (storyPrice) storyPrice.textContent = priceInput?.value || "R$ 0,00";
 
     if (storyLocation) {
-      storyLocation.textContent = `${districtInput?.value || "Região"} - ${cityInput?.value || "Cidade"}`;
+      const district = districtInput?.value?.trim() || "";
+      const city = cityInput?.value?.trim() || "";
+      storyLocation.textContent = district && city
+        ? `${district} - ${city}`
+        : district || city || "Região - Cidade";
     }
 
     if (storyArea) storyArea.textContent = areaInput?.value || "Área";
     if (storyDescription) storyDescription.textContent = descInput?.value || "Descrição";
     if (storyContact) storyContact.textContent = contactInput?.value || "@assessoriaimobiliaria";
+
     if (storyFeatures) {
       const selected = [...featureInputs]
-        .filter(item => item.checked)
-        .map(item => item.value);
+        .filter((item) => item.checked)
+        .map((item) => item.value);
 
       storyFeatures.innerHTML = selected
-        .slice(0,4)
-        .map(item => `<span>${item}</span>`)
+        .slice(0, 4)
+        .map((item) => `<span>${item}</span>`)
         .join("");
     }
   }
-
-  [badgeInput, titleInput, priceInput, cityInput, districtInput, areaInput, descInput, contactInput]
-    .forEach((el) => el && el.addEventListener("input", updatePreviewText));
-
-  updatePreviewText();
 
   function applyImageSettings() {
     if (!storyImage) return;
 
     const fit = imageFitSelect?.value || "cover";
-    const x = `${posX?.value ?? 50}%`;
-    const y = `${posY?.value ?? 50}%`;
+    const xValue = Number(posX?.value ?? 50);
+    const yValue = Number(posY?.value ?? 50);
+    const x = `${xValue}%`;
+    const y = `${yValue}%`;
 
-    storyImage.style.objectFit = fit;
-    storyImage.style.objectPosition = `${x} ${y}`;
+    storyImage.style.setProperty("object-fit", fit, "important");
+    storyImage.style.setProperty("object-position", `${x} ${y}`, "important");
 
     const useBg = (containBgSelect?.value ?? "true") === "true";
-    const shouldShowBg = fit === "contain" && useBg && storyImage.src;
+    const shouldShowBg = fit === "contain" && useBg && Boolean(storyImage.src);
 
     if (storyBgBlur) {
+      storyBgBlur.style.backgroundPosition = `${x} ${y}`;
+
       if (shouldShowBg) {
         storyBgBlur.classList.remove("hidden");
         storyBgBlur.style.backgroundImage = `url('${storyImage.src}')`;
@@ -96,13 +105,38 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  [imageFitSelect, containBgSelect, posX, posY].forEach((el) =>
-    el && el.addEventListener("input", applyImageSettings)
-  );
+  function updatePreviewAndInvalidate() {
+    updatePreviewText();
+    invalidateStoryCache();
+  }
 
-  [imageFitSelect, containBgSelect].forEach((el) =>
-    el && el.addEventListener("change", applyImageSettings)
-  );
+  function updateImageAndInvalidate() {
+    applyImageSettings();
+    invalidateStoryCache();
+  }
+
+  [badgeInput, titleInput, priceInput, cityInput, districtInput, areaInput, descInput, contactInput]
+    .forEach((el) => {
+      el?.addEventListener("input", updatePreviewAndInvalidate);
+      el?.addEventListener("change", updatePreviewAndInvalidate);
+    });
+
+  [...featureInputs].forEach((el) => {
+    el.addEventListener("change", updatePreviewAndInvalidate);
+  });
+
+  [posX, posY].forEach((el) => {
+    el?.addEventListener("input", updateImageAndInvalidate);
+    el?.addEventListener("change", updateImageAndInvalidate);
+  });
+
+  [imageFitSelect, containBgSelect].forEach((el) => {
+    el?.addEventListener("input", updateImageAndInvalidate);
+    el?.addEventListener("change", updateImageAndInvalidate);
+  });
+
+  updatePreviewText();
+  applyImageSettings();
 
   $("image-upload-story")?.addEventListener("change", (e) => {
     const file = e.target.files?.[0];
@@ -113,11 +147,13 @@ document.addEventListener("DOMContentLoaded", () => {
       storyImage.crossOrigin = "anonymous";
       storyImage.src = ev.target.result;
       storyImage.classList.remove("hidden");
-      applyImageSettings();
-      LAST_STORY_BLOB = null;
-      LAST_STORY_CREATED_AT = 0;
+      invalidateStoryCache();
     };
     reader.readAsDataURL(file);
+  });
+
+  storyImage?.addEventListener("load", () => {
+    applyImageSettings();
   });
 
   $("logo-upload-story")?.addEventListener("change", (e) => {
@@ -132,8 +168,7 @@ document.addEventListener("DOMContentLoaded", () => {
       img.src = ev.target.result;
       img.classList.remove("hidden");
       storyLogoWrapper?.classList.remove("hidden");
-      LAST_STORY_BLOB = null;
-      LAST_STORY_CREATED_AT = 0;
+      invalidateStoryCache();
     };
     reader.readAsDataURL(file);
   });
@@ -161,9 +196,7 @@ document.addEventListener("DOMContentLoaded", () => {
       storyImage.crossOrigin = "anonymous";
       storyImage.src = data.imagem;
       storyImage.classList.remove("hidden");
-      applyImageSettings();
-      LAST_STORY_BLOB = null;
-      LAST_STORY_CREATED_AT = 0;
+      invalidateStoryCache();
     } catch (err) {
       console.error(err);
       alert("Erro ao buscar imagem no backend online. Veja o Console F12.");
@@ -217,6 +250,10 @@ document.addEventListener("DOMContentLoaded", () => {
     if (typeof domtoimage === "undefined") throw new Error("domtoimage não carregou.");
     const story = $("story-preview-wrapper");
     if (!story) throw new Error("Não achei #story-preview-wrapper no HTML.");
+
+    updatePreviewText();
+    applyImageSettings();
+
     if (document.fonts?.ready) await withTimeout(document.fonts.ready, 6000, "fontes");
     await waitForImages(story, 6000);
 
@@ -229,7 +266,12 @@ document.addEventListener("DOMContentLoaded", () => {
           const clonedStory = clonedDoc.getElementById("story-preview-wrapper");
           if (clonedStory) stripHeavyCssForExport(clonedStory);
         },
-        style: { transform: "none", width: "1080px", height: "1920px", overflow: "hidden" },
+        style: {
+          transform: "none",
+          width: "1080px",
+          height: "1920px",
+          overflow: "hidden",
+        },
       }),
       20000,
       "geração do PNG"
@@ -255,7 +297,6 @@ document.addEventListener("DOMContentLoaded", () => {
     document.body.appendChild(link);
     link.click();
     link.remove();
-
     setTimeout(() => URL.revokeObjectURL(url), 30000);
   }
 
@@ -287,6 +328,7 @@ document.addEventListener("DOMContentLoaded", () => {
   postBtn?.addEventListener("click", async (e) => {
     e.preventDefault();
     e.stopPropagation();
+
     try {
       if (!isMobile()) {
         const dataUrl = await gerarStoryPngDataUrl();
@@ -299,10 +341,20 @@ document.addEventListener("DOMContentLoaded", () => {
 
       const now = Date.now();
       const blobFresh = LAST_STORY_BLOB && now - LAST_STORY_CREATED_AT < 120000;
+
       if (blobFresh && navigator.share && navigator.canShare) {
-        const file = new File([LAST_STORY_BLOB], "story-assessoria-imobiliaria.png", { type: "image/png" });
+        const file = new File(
+          [LAST_STORY_BLOB],
+          "story-assessoria-imobiliaria.png",
+          { type: "image/png" }
+        );
+
         if (navigator.canShare({ files: [file] })) {
-          await navigator.share({ files: [file], title: "Story - Assessoria Imobiliária", text: "Postar no Instagram Stories" });
+          await navigator.share({
+            files: [file],
+            title: "Story - Assessoria Imobiliária",
+            text: "Postar no Instagram Stories",
+          });
           return;
         }
       }
