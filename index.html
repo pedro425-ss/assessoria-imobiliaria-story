@@ -9,6 +9,7 @@
   <script src="https://unpkg.com/dom-to-image-more@2.8.0/dist/dom-to-image-more.min.js"></script>
 
   <link rel="stylesheet" href="./Style.css" />
+  <link rel="stylesheet" href="./adjustments.css" />
 </head>
 
 <body class="bg-stone-950 text-white min-h-screen p-6">
@@ -106,34 +107,70 @@
       </div>
 
       <div class="section">
-        <div class="section-title">Ajuste da foto</div>
+        <div class="section-title">Ajuste profissional da foto</div>
 
-        <div class="grid-2">
-          <div class="field">
-            <label class="label" for="image-fit">Modo</label>
-            <select id="image-fit" class="select">
-              <option value="cover" selected>Cortar</option>
-              <option value="contain">Encaixar</option>
-            </select>
+        <div class="adjustment-panel">
+          <div class="adjustment-grid">
+            <div class="field">
+              <label class="label" for="image-fit">Enquadramento</label>
+              <select id="image-fit" class="select">
+                <option value="cover" selected>Preencher o Story</option>
+                <option value="contain">Mostrar a foto inteira</option>
+              </select>
+            </div>
+
+            <div class="field">
+              <label class="label" for="contain-bg">Fundo ao mostrar inteira</label>
+              <select id="contain-bg" class="select">
+                <option value="true" selected>Fundo desfocado</option>
+                <option value="false">Fundo limpo</option>
+              </select>
+            </div>
           </div>
 
-          <div class="field">
-            <label class="label" for="contain-bg">Fundo no encaixar</label>
-            <select id="contain-bg" class="select">
-              <option value="true" selected>Blur ligado</option>
-              <option value="false">Blur desligado</option>
-            </select>
+          <div class="adjust-control">
+            <div class="adjust-control-head">
+              <label class="adjust-control-title" for="zoom">Zoom</label>
+              <span id="zoom-value" class="adjust-value">100%</span>
+            </div>
+            <input id="zoom" class="adjust-range" type="range" min="100" max="180" step="1" value="100" />
+            <div class="adjust-range-scale"><span>100%</span><span>140%</span><span>180%</span></div>
+            <div class="adjust-hint">Aproxime a foto sem perder o controle do enquadramento.</div>
           </div>
-        </div>
 
-        <div class="field">
-          <label class="label" for="pos-x">Posição horizontal</label>
-          <input id="pos-x" type="range" min="0" max="100" value="50" class="range" />
-        </div>
+          <div class="adjust-control">
+            <div class="adjust-control-head">
+              <label class="adjust-control-title" for="pos-x">Posição horizontal</label>
+              <span id="pos-x-value" class="adjust-value">50%</span>
+            </div>
+            <input id="pos-x" class="adjust-range" type="range" min="0" max="100" value="50" />
+            <div class="adjust-range-scale"><span>Esquerda</span><span>Centro</span><span>Direita</span></div>
+          </div>
 
-        <div class="field">
-          <label class="label" for="pos-y">Posição vertical</label>
-          <input id="pos-y" type="range" min="0" max="100" value="50" class="range" />
+          <div class="adjust-control">
+            <div class="adjust-control-head">
+              <label class="adjust-control-title" for="pos-y">Posição vertical</label>
+              <span id="pos-y-value" class="adjust-value">50%</span>
+            </div>
+            <input id="pos-y" class="adjust-range" type="range" min="0" max="100" value="50" />
+            <div class="adjust-range-scale"><span>Topo</span><span>Centro</span><span>Base</span></div>
+          </div>
+
+          <div class="framing-block">
+            <div class="framing-title">Enquadramento rápido</div>
+            <div class="framing-presets">
+              <button type="button" class="frame-preset" data-x="50" data-y="18">Topo</button>
+              <button type="button" class="frame-preset" data-x="20" data-y="50">Esquerda</button>
+              <button type="button" class="frame-preset" data-x="50" data-y="50">Centro</button>
+              <button type="button" class="frame-preset" data-x="80" data-y="50">Direita</button>
+              <button type="button" class="frame-preset" data-x="50" data-y="82">Base</button>
+            </div>
+            <div class="adjust-hint">Use um preset e depois faça o ajuste fino pelos controles acima.</div>
+          </div>
+
+          <div class="adjust-actions">
+            <button id="reset-adjustments" type="button" class="btn-reset-adjustments">Restaurar enquadramento original</button>
+          </div>
         </div>
       </div>
 
@@ -218,5 +255,6 @@
   </div>
 
   <script src="./script.js"></script>
+  <script src="./adjustments.js"></script>
 </body>
 </html>
