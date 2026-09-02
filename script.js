@@ -241,7 +241,22 @@ document.addEventListener("DOMContentLoaded", () => {
 
   async function dataUrlToBlob(dataUrl) {
     const res = await fetch(dataUrl);
-    return await res.blob();
+    const blob = await res.blob();
+    if (!blob || blob.size === 0) throw new Error("Arquivo PNG vazio.");
+    return blob.type === "image/png" ? blob : blob.slice(0, blob.size, "image/png");
+  }
+
+  function baixarBlobPng(blob, nomeArquivo = "story-assessoria-imobiliaria-1080x1920.png") {
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = nomeArquivo;
+    link.style.display = "none";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+
+    setTimeout(() => URL.revokeObjectURL(url), 30000);
   }
 
   const downloadBtn = $("download-story");
@@ -250,28 +265,22 @@ document.addEventListener("DOMContentLoaded", () => {
   downloadBtn?.addEventListener("click", async (e) => {
     e.preventDefault();
     e.stopPropagation();
+
+    const textoOriginal = downloadBtn.textContent;
+    downloadBtn.disabled = true;
+    downloadBtn.textContent = "Gerando PNG...";
+
     try {
-      let handle = null;
-      if (window.showSaveFilePicker) {
-        handle = await window.showSaveFilePicker({
-          suggestedName: "story-assessoria-imobiliaria-1080x1920.png",
-          types: [{ description: "PNG Image", accept: { "image/png": [".png"] } }],
-        });
-      }
       const dataUrl = await gerarStoryPngDataUrl();
       const blob = await dataUrlToBlob(dataUrl);
-      if (handle) {
-        const writable = await handle.createWritable();
-        await writable.write(blob);
-        await writable.close();
-        return;
-      }
-      const w = window.open("about:blank", "_blank");
-      if (w) w.location.href = dataUrl;
-      else alert("Pop-up bloqueado. Permita pop-ups no navegador.");
+      baixarBlobPng(blob);
+      alert("✅ PNG gerado. Confira a pasta Downloads do aparelho.");
     } catch (err) {
       console.error(err);
       alert("Falhou ao baixar PNG: " + (err?.message || err));
+    } finally {
+      downloadBtn.disabled = false;
+      downloadBtn.textContent = textoOriginal || "Baixar PNG";
     }
   });
 
@@ -280,23 +289,9 @@ document.addEventListener("DOMContentLoaded", () => {
     e.stopPropagation();
     try {
       if (!isMobile()) {
-        let handle = null;
-        if (window.showSaveFilePicker) {
-          handle = await window.showSaveFilePicker({
-            suggestedName: "story-assessoria-imobiliaria-1080x1920.png",
-            types: [{ description: "PNG Image", accept: { "image/png": [".png"] } }],
-          });
-        }
         const dataUrl = await gerarStoryPngDataUrl();
         const blob = await dataUrlToBlob(dataUrl);
-        if (handle) {
-          const writable = await handle.createWritable();
-          await writable.write(blob);
-          await writable.close();
-        } else {
-          const w = window.open("about:blank", "_blank");
-          if (w) w.location.href = dataUrl;
-        }
+        baixarBlobPng(blob);
         window.open("https://www.instagram.com/", "_blank");
         alert("PNG salvo. No Instagram: Criar → Story → escolher o arquivo.");
         return;
