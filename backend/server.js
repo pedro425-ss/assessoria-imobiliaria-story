@@ -20,16 +20,37 @@ FRONTEND
 ========================================
 */
 
+function sendFrontendFile(res, fileName) {
+  // Evita que navegadores mobile continuem usando versões antigas
+  // do HTML/CSS/JS depois de um novo deploy no Render.
+  res.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+  res.set("Pragma", "no-cache");
+  res.set("Expires", "0");
+  return res.sendFile(path.join(frontendDir, fileName));
+}
+
 app.get("/", (req, res) => {
-  res.sendFile(path.join(frontendDir, "index.html"));
+  return sendFrontendFile(res, "index.html");
 });
 
 app.get("/Style.css", (req, res) => {
-  res.sendFile(path.join(frontendDir, "Style.css"));
+  return sendFrontendFile(res, "Style.css");
+});
+
+app.get("/adjustments.css", (req, res) => {
+  return sendFrontendFile(res, "adjustments.css");
+});
+
+app.get("/mobile.css", (req, res) => {
+  return sendFrontendFile(res, "mobile.css");
 });
 
 app.get("/script.js", (req, res) => {
-  res.sendFile(path.join(frontendDir, "script.js"));
+  return sendFrontendFile(res, "script.js");
+});
+
+app.get("/adjustments.js", (req, res) => {
+  return sendFrontendFile(res, "adjustments.js");
 });
 
 /*
