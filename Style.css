@@ -59,6 +59,10 @@ left:54px;
 right:54px;
 bottom:204px;
 z-index:2;
+width:auto;
+display:flex;
+flex-direction:column;
+align-items:stretch;
 }
 
 .story-badge{
@@ -68,49 +72,80 @@ padding:18px 32px;
 border-radius:999px;
 font-weight:800;
 font-size:34px;
+line-height:1.15;
 display:inline-block;
-margin-bottom:30px;
+width:max-content;
+max-width:100%;
+margin-bottom:28px;
 letter-spacing:1px;
+white-space:normal;
+overflow-wrap:break-word;
 }
 
 .story-title{
 font-size:76px;
 font-weight:900;
-line-height:1.1;
-margin-bottom:20px;
+line-height:1.08;
+margin-bottom:24px;
+max-width:100%;
+white-space:normal;
+overflow-wrap:break-word;
+word-break:normal;
 text-shadow:0 3px 10px rgba(0,0,0,.45);
 }
 
 .story-price{
 font-size:70px;
 font-weight:900;
+line-height:1.08;
 color:#f8d78c;
-margin-bottom:20px;
+margin-bottom:30px;
+max-width:100%;
+white-space:normal;
+overflow-wrap:break-word;
 }
 
 .story-meta{
-display:flex;
-gap:30px;
-font-size:34px;
+display:grid;
+grid-template-columns:minmax(0,1.45fr) minmax(0,.75fr);
+column-gap:48px;
+align-items:start;
+width:100%;
+font-size:32px;
+line-height:1.3;
 opacity:0.95;
-margin-bottom:24px;
+margin-bottom:32px;
+}
+
+.story-meta span{
+display:block;
+min-width:0;
+max-width:100%;
+white-space:normal;
+overflow-wrap:break-word;
+word-break:normal;
+}
+
+#story-area{
+text-align:right;
 }
 
 .story-description{
-font-size:40px;
-line-height:1.3;
-margin-bottom:30px;
+display:block;
+width:100%;
+font-size:38px;
+line-height:1.32;
+margin:0 0 34px 0;
 opacity:0.95;
 white-space:normal;
-overflow-wrap:anywhere;
-word-break:break-word;
-display:-webkit-box;
--webkit-box-orient:vertical;
--webkit-line-clamp:3;
+overflow-wrap:break-word;
+word-break:normal;
+max-height:201px;
 overflow:hidden;
 }
 
 .story-cta{
+width:100%;
 background:rgba(255,255,255,.12);
 border:1px solid rgba(255,255,255,.18);
 border-radius:40px;
@@ -121,12 +156,16 @@ backdrop-filter:blur(10px);
 .story-cta-title{
 font-size:36px;
 font-weight:900;
-margin-bottom:8px;
+line-height:1.2;
+margin-bottom:10px;
 }
 
 .story-contact{
 font-size:42px;
 font-weight:800;
+line-height:1.2;
+white-space:normal;
+overflow-wrap:break-word;
 }
 
 .story-footer{
@@ -134,11 +173,23 @@ position:absolute;
 left:54px;
 right:54px;
 bottom:48px;
+dis:flex;
 display:flex;
 justify-content:space-between;
+align-items:flex-end;
+gap:30px;
 font-size:28px;
+line-height:1.2;
 opacity:0.9;
 z-index:2;
+}
+
+.story-footer span{
+min-width:0;
+}
+
+.story-footer span:last-child{
+text-align:right;
 }
 
 .panel{
