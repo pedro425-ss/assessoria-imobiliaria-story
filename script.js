@@ -31,10 +31,15 @@ document.addEventListener("DOMContentLoaded", () => {
   const contactInput = $("contact");
   const featureInputs = document.querySelectorAll(".feature");
   const storyFeatures = $("story-features");
+
   const imageFitSelect = $("image-fit");
   const containBgSelect = $("contain-bg");
   const posX = $("pos-x");
   const posY = $("pos-y");
+  const zoom = $("zoom");
+  const zoomValue = $("zoom-value");
+  const posXValue = $("pos-x-value");
+  const posYValue = $("pos-y-value");
 
   const storyBadge = $("story-badge");
   const storyTitle = $("story-title");
@@ -77,32 +82,76 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  function applyImageSettings() {
-    if (!storyImage) return;
+  function updateAdjustmentLabels() {
+    if (zoomValue) zoomValue.textContent = `${zoom?.value || 100}%`;
+    if (posXValue) posXValue.textContent = `${posX?.value || 50}%`;
+    if (posYValue) posYValue.textContent = `${posY?.value || 50}%`;
+  }
+
+  function applyFrameToElement(targetImage, targetBlur, sourceImage = storyImage) {
+    if (!targetImage || !sourceImage?.src) return;
 
     const fit = imageFitSelect?.value || "cover";
-    const xValue = Number(posX?.value ?? 50);
-    const yValue = Number(posY?.value ?? 50);
-    const x = `${xValue}%`;
-    const y = `${yValue}%`;
+    const xPct = Number(posX?.value ?? 50);
+    const yPct = Number(posY?.value ?? 50);
+    const zoomScale = Number(zoom?.value ?? 100) / 100;
 
-    storyImage.style.setProperty("object-fit", fit, "important");
-    storyImage.style.setProperty("object-position", `${x} ${y}`, "important");
+    const containerW = 1080;
+    const containerH = 1920;
+    const naturalW = sourceImage.naturalWidth || targetImage.naturalWidth || 1080;
+    const naturalH = sourceImage.naturalHeight || targetImage.naturalHeight || 1920;
+
+    if (!naturalW || !naturalH) return;
+
+    const baseScale = fit === "cover"
+      ? Math.max(containerW / naturalW, containerH / naturalH)
+      : Math.min(containerW / naturalW, containerH / naturalH);
+
+    const finalW = naturalW * baseScale * zoomScale;
+    const finalH = naturalH * baseScale * zoomScale;
+
+    const freeX = containerW - finalW;
+    const freeY = containerH - finalH;
+    const left = freeX * (xPct / 100);
+    const top = freeY * (yPct / 100);
+
+    targetImage.style.setProperty("position", "absolute", "important");
+    targetImage.style.setProperty("left", `${left}px`, "important");
+    targetImage.style.setProperty("top", `${top}px`, "important");
+    targetImage.style.setProperty("width", `${finalW}px`, "important");
+    targetImage.style.setProperty("height", `${finalH}px`, "important");
+    targetImage.style.setProperty("max-width", "none", "important");
+    targetImage.style.setProperty("max-height", "none", "important");
+    targetImage.style.setProperty("object-fit", "fill", "important");
+    targetImage.style.setProperty("object-position", "center center", "important");
+    targetImage.style.setProperty("transform", "none", "important");
+    targetImage.style.setProperty("transform-origin", "center center", "important");
 
     const useBg = (containBgSelect?.value ?? "true") === "true";
-    const shouldShowBg = fit === "contain" && useBg && Boolean(storyImage.src);
+    const shouldShowBg = fit === "contain" && useBg;
 
-    if (storyBgBlur) {
-      storyBgBlur.style.backgroundPosition = `${x} ${y}`;
+    if (targetBlur) {
+      targetBlur.style.backgroundPosition = `${xPct}% ${yPct}%`;
 
       if (shouldShowBg) {
-        storyBgBlur.classList.remove("hidden");
-        storyBgBlur.style.backgroundImage = `url('${storyImage.src}')`;
+        targetBlur.classList.remove("hidden");
+        targetBlur.style.backgroundImage = `url('${sourceImage.src}')`;
       } else {
-        storyBgBlur.classList.add("hidden");
-        storyBgBlur.style.backgroundImage = "";
+        targetBlur.classList.add("hidden");
+        targetBlur.style.backgroundImage = "";
       }
     }
+
+    updateAdjustmentLabels();
+  }
+
+  function applyImageSettings() {
+    applyFrameToElement(storyImage, storyBgBlur, storyImage);
+  }
+
+  function applyImageSettingsAfterOtherHandlers() {
+    applyImageSettings();
+    requestAnimationFrame(() => applyImageSettings());
   }
 
   function updatePreviewAndInvalidate() {
@@ -111,7 +160,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function updateImageAndInvalidate() {
-    applyImageSettings();
+    applyImageSettingsAfterOtherHandlers();
     invalidateStoryCache();
   }
 
@@ -125,18 +174,14 @@ document.addEventListener("DOMContentLoaded", () => {
     el.addEventListener("change", updatePreviewAndInvalidate);
   });
 
-  [posX, posY].forEach((el) => {
-    el?.addEventListener("input", updateImageAndInvalidate);
-    el?.addEventListener("change", updateImageAndInvalidate);
-  });
-
-  [imageFitSelect, containBgSelect].forEach((el) => {
+  [posX, posY, zoom, imageFitSelect, containBgSelect].forEach((el) => {
     el?.addEventListener("input", updateImageAndInvalidate);
     el?.addEventListener("change", updateImageAndInvalidate);
   });
 
   updatePreviewText();
-  applyImageSettings();
+  updateAdjustmentLabels();
+  applyImageSettingsAfterOtherHandlers();
 
   $("image-upload-story")?.addEventListener("change", (e) => {
     const file = e.target.files?.[0];
@@ -153,7 +198,7 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   storyImage?.addEventListener("load", () => {
-    applyImageSettings();
+    applyImageSettingsAfterOtherHandlers();
   });
 
   $("logo-upload-story")?.addEventListener("change", (e) => {
@@ -272,17 +317,30 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     const cloneImage = clone.querySelector("#story-image-preview");
-    if (cloneImage && storyImage) {
-      cloneImage.style.setProperty("object-fit", storyImage.style.objectFit || imageFitSelect?.value || "cover", "important");
-      cloneImage.style.setProperty("object-position", storyImage.style.objectPosition || `${posX?.value || 50}% ${posY?.value || 50}%`, "important");
-      cloneImage.style.setProperty("transform", storyImage.style.transform || "none", "important");
-      cloneImage.style.setProperty("transform-origin", storyImage.style.transformOrigin || "50% 50%", "important");
+    const cloneBlur = clone.querySelector("#story-bg-blur");
+
+    if (cloneImage && storyImage?.src) {
+      cloneImage.src = storyImage.src;
+      cloneImage.classList.remove("hidden");
+
+      const properties = [
+        "position", "left", "top", "width", "height", "max-width", "max-height",
+        "object-fit", "object-position", "transform", "transform-origin"
+      ];
+
+      properties.forEach((property) => {
+        const value = storyImage.style.getPropertyValue(property);
+        if (value) cloneImage.style.setProperty(property, value, "important");
+      });
+
+      cloneImage.style.setProperty("transform", "none", "important");
+      cloneImage.style.setProperty("transform-origin", "center center", "important");
     }
 
-    const cloneBlur = clone.querySelector("#story-bg-blur");
     if (cloneBlur && storyBgBlur) {
       cloneBlur.style.backgroundImage = storyBgBlur.style.backgroundImage;
       cloneBlur.style.backgroundPosition = storyBgBlur.style.backgroundPosition;
+      cloneBlur.className = storyBgBlur.className;
     }
 
     host.appendChild(clone);
