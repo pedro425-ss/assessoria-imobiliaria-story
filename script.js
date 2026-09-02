@@ -199,7 +199,7 @@ document.addEventListener("DOMContentLoaded", () => {
       invalidateStoryCache();
     } catch (err) {
       console.error(err);
-      alert("Erro ao buscar imagem no backend online. Veja o Console F12.");
+      alert("Erro ao buscar imagem no backend online.");
     }
   });
 
@@ -212,9 +212,9 @@ document.addEventListener("DOMContentLoaded", () => {
     ]);
   }
 
-  async function waitForImages(container, timeoutMs = 6000) {
+  async function waitForImages(container, timeoutMs = 8000) {
     const imgs = [...container.querySelectorAll("img")].filter((img) => img.src);
-    const perImgPromises = imgs.map((img) => {
+    await Promise.all(imgs.map((img) => {
       if (img.complete && img.naturalWidth > 0) return Promise.resolve();
       return withTimeout(
         new Promise((resolve) => {
@@ -224,61 +224,125 @@ document.addEventListener("DOMContentLoaded", () => {
         }),
         timeoutMs,
         "carregamento de imagem"
-      ).catch(() => {
-        console.warn("⚠️ Imagem travou e foi ignorada:", String(img.src).slice(0, 140));
-      });
-    });
-    await Promise.all(perImgPromises);
+      ).catch(() => undefined);
+    }));
   }
 
-  function stripHeavyCssForExport(root) {
-    try {
-      root.querySelectorAll("*").forEach((el) => {
-        el.style.setProperty("backdrop-filter", "none", "important");
-        el.style.setProperty("-webkit-backdrop-filter", "none", "important");
-        el.style.setProperty("filter", "none", "important");
-        el.style.setProperty("clip-path", "none", "important");
-      });
-      const blur = root.querySelector("#story-bg-blur");
-      if (blur) blur.remove();
-    } catch (e) {
-      console.warn("stripHeavyCssForExport falhou:", e);
+  function nextFrame() {
+    return new Promise((resolve) => requestAnimationFrame(() => resolve()));
+  }
+
+  function prepareExportClone(story) {
+    const host = document.createElement("div");
+    host.setAttribute("aria-hidden", "true");
+    host.style.position = "fixed";
+    host.style.left = "-12000px";
+    host.style.top = "0";
+    host.style.width = "1080px";
+    host.style.height = "1920px";
+    host.style.overflow = "hidden";
+    host.style.pointerEvents = "none";
+    host.style.zIndex = "-2147483647";
+    host.style.background = "#15160d";
+
+    const clone = story.cloneNode(true);
+    clone.id = "story-export-clone";
+    clone.classList.remove("shadow-2xl");
+    clone.style.setProperty("position", "relative", "important");
+    clone.style.setProperty("left", "0", "important");
+    clone.style.setProperty("top", "0", "important");
+    clone.style.setProperty("width", "1080px", "important");
+    clone.style.setProperty("height", "1920px", "important");
+    clone.style.setProperty("min-width", "1080px", "important");
+    clone.style.setProperty("min-height", "1920px", "important");
+    clone.style.setProperty("max-width", "none", "important");
+    clone.style.setProperty("transform", "none", "important");
+    clone.style.setProperty("transform-origin", "top left", "important");
+    clone.style.setProperty("margin", "0", "important");
+    clone.style.setProperty("border-radius", "0", "important");
+    clone.style.setProperty("clip-path", "none", "important");
+    clone.style.setProperty("overflow", "hidden", "important");
+    clone.style.setProperty("box-shadow", "none", "important");
+
+    clone.querySelectorAll("*").forEach((el) => {
+      el.style.setProperty("transition", "none", "important");
+      el.style.setProperty("animation", "none", "important");
+      el.style.setProperty("backdrop-filter", "none", "important");
+      el.style.setProperty("-webkit-backdrop-filter", "none", "important");
+    });
+
+    const cloneImage = clone.querySelector("#story-image-preview");
+    if (cloneImage && storyImage) {
+      cloneImage.style.setProperty("object-fit", storyImage.style.objectFit || imageFitSelect?.value || "cover", "important");
+      cloneImage.style.setProperty("object-position", storyImage.style.objectPosition || `${posX?.value || 50}% ${posY?.value || 50}%`, "important");
+      cloneImage.style.setProperty("transform", storyImage.style.transform || "none", "important");
+      cloneImage.style.setProperty("transform-origin", storyImage.style.transformOrigin || "50% 50%", "important");
     }
+
+    const cloneBlur = clone.querySelector("#story-bg-blur");
+    if (cloneBlur && storyBgBlur) {
+      cloneBlur.style.backgroundImage = storyBgBlur.style.backgroundImage;
+      cloneBlur.style.backgroundPosition = storyBgBlur.style.backgroundPosition;
+    }
+
+    host.appendChild(clone);
+    document.body.appendChild(host);
+    return { host, clone };
   }
 
   async function gerarStoryPngDataUrl() {
     if (typeof domtoimage === "undefined") throw new Error("domtoimage não carregou.");
+
     const story = $("story-preview-wrapper");
-    if (!story) throw new Error("Não achei #story-preview-wrapper no HTML.");
+    if (!story) throw new Error("Não achei o Story para exportar.");
 
     updatePreviewText();
     applyImageSettings();
 
-    if (document.fonts?.ready) await withTimeout(document.fonts.ready, 6000, "fontes");
-    await waitForImages(story, 6000);
+    if (document.fonts?.ready) {
+      await withTimeout(document.fonts.ready, 8000, "fontes").catch(() => undefined);
+    }
+    await waitForImages(story, 8000);
 
-    const dataUrl = await withTimeout(
-      domtoimage.toPng(story, {
-        width: 1080,
-        height: 1920,
-        cacheBust: true,
-        onclone: (clonedDoc) => {
-          const clonedStory = clonedDoc.getElementById("story-preview-wrapper");
-          if (clonedStory) stripHeavyCssForExport(clonedStory);
-        },
-        style: {
-          transform: "none",
-          width: "1080px",
-          height: "1920px",
-          overflow: "hidden",
-        },
-      }),
-      20000,
-      "geração do PNG"
-    );
+    const { host, clone } = prepareExportClone(story);
 
-    if (!dataUrl || !dataUrl.startsWith("data:image/png")) throw new Error("PNG inválido.");
-    return dataUrl;
+    try {
+      await waitForImages(clone, 8000);
+      await nextFrame();
+      await nextFrame();
+
+      const dataUrl = await withTimeout(
+        domtoimage.toPng(clone, {
+          width: 1080,
+          height: 1920,
+          cacheBust: true,
+          bgcolor: "#15160d",
+          style: {
+            width: "1080px",
+            height: "1920px",
+            minWidth: "1080px",
+            minHeight: "1920px",
+            maxWidth: "none",
+            transform: "none",
+            transformOrigin: "top left",
+            margin: "0",
+            borderRadius: "0",
+            clipPath: "none",
+            overflow: "hidden",
+            boxShadow: "none"
+          }
+        }),
+        30000,
+        "geração do PNG em 1080x1920"
+      );
+
+      if (!dataUrl || !dataUrl.startsWith("data:image/png")) {
+        throw new Error("PNG inválido.");
+      }
+      return dataUrl;
+    } finally {
+      host.remove();
+    }
   }
 
   async function dataUrlToBlob(dataUrl) {
@@ -286,6 +350,19 @@ document.addEventListener("DOMContentLoaded", () => {
     const blob = await res.blob();
     if (!blob || blob.size === 0) throw new Error("Arquivo PNG vazio.");
     return blob.type === "image/png" ? blob : blob.slice(0, blob.size, "image/png");
+  }
+
+  async function gerarStoryBlob(forceNew = false) {
+    const now = Date.now();
+    if (!forceNew && LAST_STORY_BLOB && now - LAST_STORY_CREATED_AT < 120000) {
+      return LAST_STORY_BLOB;
+    }
+
+    const dataUrl = await gerarStoryPngDataUrl();
+    const blob = await dataUrlToBlob(dataUrl);
+    LAST_STORY_BLOB = blob;
+    LAST_STORY_CREATED_AT = Date.now();
+    return blob;
   }
 
   function baixarBlobPng(blob, nomeArquivo = "story-assessoria-imobiliaria-1080x1920.png") {
@@ -302,26 +379,26 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const downloadBtn = $("download-story");
   const postBtn = $("post-story");
+  const fileName = "story-assessoria-imobiliaria-1080x1920.png";
 
   downloadBtn?.addEventListener("click", async (e) => {
     e.preventDefault();
     e.stopPropagation();
 
-    const textoOriginal = downloadBtn.textContent;
+    const original = downloadBtn.textContent;
     downloadBtn.disabled = true;
-    downloadBtn.textContent = "Gerando PNG...";
+    downloadBtn.textContent = "Gerando 1080×1920...";
 
     try {
-      const dataUrl = await gerarStoryPngDataUrl();
-      const blob = await dataUrlToBlob(dataUrl);
-      baixarBlobPng(blob);
-      alert("✅ PNG gerado. Confira a pasta Downloads do aparelho.");
+      const blob = await gerarStoryBlob(true);
+      baixarBlobPng(blob, fileName);
+      alert("✅ PNG 1080×1920 gerado.");
     } catch (err) {
       console.error(err);
       alert("Falhou ao baixar PNG: " + (err?.message || err));
     } finally {
       downloadBtn.disabled = false;
-      downloadBtn.textContent = textoOriginal || "Baixar PNG";
+      downloadBtn.textContent = original || "Baixar PNG";
     }
   });
 
@@ -329,45 +406,42 @@ document.addEventListener("DOMContentLoaded", () => {
     e.preventDefault();
     e.stopPropagation();
 
+    const original = postBtn.textContent;
+    postBtn.disabled = true;
+    postBtn.textContent = "Preparando 1080×1920...";
+
     try {
-      if (!isMobile()) {
-        const dataUrl = await gerarStoryPngDataUrl();
-        const blob = await dataUrlToBlob(dataUrl);
-        baixarBlobPng(blob);
-        window.open("https://www.instagram.com/", "_blank");
-        alert("PNG salvo. No Instagram: Criar → Story → escolher o arquivo.");
-        return;
-      }
+      const blob = await gerarStoryBlob(false);
+      const file = new File([blob], fileName, { type: "image/png" });
 
-      const now = Date.now();
-      const blobFresh = LAST_STORY_BLOB && now - LAST_STORY_CREATED_AT < 120000;
-
-      if (blobFresh && navigator.share && navigator.canShare) {
-        const file = new File(
-          [LAST_STORY_BLOB],
-          "story-assessoria-imobiliaria.png",
-          { type: "image/png" }
-        );
-
-        if (navigator.canShare({ files: [file] })) {
+      if (isMobile() && navigator.share && navigator.canShare?.({ files: [file] })) {
+        try {
           await navigator.share({
             files: [file],
             title: "Story - Assessoria Imobiliária",
-            text: "Postar no Instagram Stories",
+            text: "Postar no Instagram Stories"
           });
           return;
+        } catch (shareError) {
+          if (shareError?.name === "AbortError") return;
+          console.warn("Compartilhamento direto não abriu:", shareError);
         }
       }
 
-      alert("Gerando o arquivo… quando terminar, clique de novo em 'Postar no Story'.");
-      const dataUrl = await gerarStoryPngDataUrl();
-      const blob = await dataUrlToBlob(dataUrl);
-      LAST_STORY_BLOB = blob;
-      LAST_STORY_CREATED_AT = Date.now();
-      alert("✅ Pronto! Clique de novo em 'Postar no Story' para abrir o compartilhar.");
+      baixarBlobPng(blob, fileName);
+
+      if (!isMobile()) {
+        window.open("https://www.instagram.com/", "_blank");
+        alert("PNG salvo. No Instagram: Criar → Story → escolher o arquivo.");
+      } else {
+        alert("PNG 1080×1920 salvo. Abra o Instagram e escolha o arquivo na galeria.");
+      }
     } catch (err) {
       console.error(err);
-      alert("Falhou ao postar: " + (err?.message || err));
+      alert("Falhou ao preparar o Story: " + (err?.message || err));
+    } finally {
+      postBtn.disabled = false;
+      postBtn.textContent = original || "Postar no Story";
     }
   });
 });
