@@ -41,6 +41,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const storyImage = $("story-image-preview");
   const storyBgBlur = $("story-bg-blur");
+  const storyLogoWrapper = $("story-logo-wrapper");
 
   function updatePreviewText() {
     if (storyBadge) storyBadge.textContent = badgeInput?.value || "IMÓVEL À VENDA";
@@ -130,6 +131,7 @@ document.addEventListener("DOMContentLoaded", () => {
       img.crossOrigin = "anonymous";
       img.src = ev.target.result;
       img.classList.remove("hidden");
+      storyLogoWrapper?.classList.remove("hidden");
       LAST_STORY_BLOB = null;
       LAST_STORY_CREATED_AT = 0;
     };
