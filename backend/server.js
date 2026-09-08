@@ -55,7 +55,11 @@ app.get("/script.js", (req, res) => {
   try {
     const mainScript = fs.readFileSync(path.join(frontendDir, "script.js"), "utf8");
     const extrasScript = fs.readFileSync(path.join(frontendDir, "extras.js"), "utf8");
-    return res.send(`${mainScript}\n\n/* Recursos avançados */\n${extrasScript}`);
+    const storySetScript = fs.readFileSync(path.join(frontendDir, "story-set.js"), "utf8");
+
+    return res.send(
+      `${mainScript}\n\n/* Recursos avançados */\n${extrasScript}\n\n/* Pacote de 3 Stories */\n${storySetScript}`
+    );
   } catch (error) {
     console.error("❌ Erro ao montar script do frontend:", error.message);
     return res.status(500).send("console.error('Erro ao carregar o editor.');");
