@@ -2,6 +2,7 @@ import express from "express";
 import cors from "cors";
 import axios from "axios";
 import * as cheerio from "cheerio";
+import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 
@@ -20,12 +21,14 @@ FRONTEND
 ========================================
 */
 
-function sendFrontendFile(res, fileName) {
-  // Evita que navegadores mobile continuem usando versões antigas
-  // do HTML/CSS/JS depois de um novo deploy no Render.
+function disableFrontendCache(res) {
   res.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
   res.set("Pragma", "no-cache");
   res.set("Expires", "0");
+}
+
+function sendFrontendFile(res, fileName) {
+  disableFrontendCache(res);
   return res.sendFile(path.join(frontendDir, fileName));
 }
 
@@ -46,7 +49,17 @@ app.get("/mobile.css", (req, res) => {
 });
 
 app.get("/script.js", (req, res) => {
-  return sendFrontendFile(res, "script.js");
+  disableFrontendCache(res);
+  res.type("application/javascript; charset=utf-8");
+
+  try {
+    const mainScript = fs.readFileSync(path.join(frontendDir, "script.js"), "utf8");
+    const extrasScript = fs.readFileSync(path.join(frontendDir, "extras.js"), "utf8");
+    return res.send(`${mainScript}\n\n/* Recursos avançados */\n${extrasScript}`);
+  } catch (error) {
+    console.error("❌ Erro ao montar script do frontend:", error.message);
+    return res.status(500).send("console.error('Erro ao carregar o editor.');");
+  }
 });
 
 app.get("/adjustments.js", (req, res) => {
