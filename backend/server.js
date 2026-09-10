@@ -15,12 +15,6 @@ const frontendDir = path.resolve(__dirname, "..");
 app.use(cors());
 app.use(express.json());
 
-/*
-========================================
-FRONTEND
-========================================
-*/
-
 function disableFrontendCache(res) {
   res.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
   res.set("Pragma", "no-cache");
@@ -32,21 +26,11 @@ function sendFrontendFile(res, fileName) {
   return res.sendFile(path.join(frontendDir, fileName));
 }
 
-app.get("/", (req, res) => {
-  return sendFrontendFile(res, "index.html");
-});
-
-app.get("/Style.css", (req, res) => {
-  return sendFrontendFile(res, "Style.css");
-});
-
-app.get("/adjustments.css", (req, res) => {
-  return sendFrontendFile(res, "adjustments.css");
-});
-
-app.get("/mobile.css", (req, res) => {
-  return sendFrontendFile(res, "mobile.css");
-});
+app.get("/", (req, res) => sendFrontendFile(res, "index.html"));
+app.get("/Style.css", (req, res) => sendFrontendFile(res, "Style.css"));
+app.get("/adjustments.css", (req, res) => sendFrontendFile(res, "adjustments.css"));
+app.get("/mobile.css", (req, res) => sendFrontendFile(res, "mobile.css"));
+app.get("/adjustments.js", (req, res) => sendFrontendFile(res, "adjustments.js"));
 
 app.get("/script.js", (req, res) => {
   disableFrontendCache(res);
@@ -56,25 +40,16 @@ app.get("/script.js", (req, res) => {
     const mainScript = fs.readFileSync(path.join(frontendDir, "script.js"), "utf8");
     const extrasScript = fs.readFileSync(path.join(frontendDir, "extras.js"), "utf8");
     const storySetScript = fs.readFileSync(path.join(frontendDir, "story-set.js"), "utf8");
+    const autofillScript = fs.readFileSync(path.join(frontendDir, "autofill.js"), "utf8");
 
     return res.send(
-      `${mainScript}\n\n/* Recursos avançados */\n${extrasScript}\n\n/* Pacote de 3 Stories */\n${storySetScript}`
+      `${mainScript}\n\n/* Recursos avançados */\n${extrasScript}\n\n/* Pacote de 3 Stories */\n${storySetScript}\n\n/* Preenchimento automático */\n${autofillScript}`
     );
   } catch (error) {
     console.error("❌ Erro ao montar script do frontend:", error.message);
     return res.status(500).send("console.error('Erro ao carregar o editor.');");
   }
 });
-
-app.get("/adjustments.js", (req, res) => {
-  return sendFrontendFile(res, "adjustments.js");
-});
-
-/*
-========================================
-EXTRAÇÃO DE DADOS DO ANÚNCIO
-========================================
-*/
 
 function cleanText(value) {
   return String(value || "").replace(/\s+/g, " ").trim();
@@ -107,50 +82,42 @@ function absoluteUrl(candidate, baseUrl) {
 
 function flattenJsonLd(value, output = []) {
   if (!value) return output;
-
   if (Array.isArray(value)) {
     value.forEach((item) => flattenJsonLd(item, output));
     return output;
   }
-
   if (typeof value === "object") {
     output.push(value);
     if (Array.isArray(value["@graph"])) {
       value["@graph"].forEach((item) => flattenJsonLd(item, output));
     }
   }
-
   return output;
 }
 
 function readJsonLd($) {
   const items = [];
-
   $('script[type="application/ld+json"]').each((_, element) => {
     const raw = $(element).html();
     if (!raw) return;
-
     try {
-      const parsed = JSON.parse(raw.trim());
-      flattenJsonLd(parsed, items);
+      flattenJsonLd(JSON.parse(raw.trim()), items);
     } catch {
-      // Alguns sites publicam JSON-LD inválido; nesse caso seguimos com meta tags/HTML.
+      // Ignora JSON-LD inválido e continua pelos metadados do HTML.
     }
   });
-
   return items;
 }
 
 function findNestedObject(items, key) {
   for (const item of items) {
-    if (item && typeof item === "object" && item[key]) {
-      const value = item[key];
-      if (Array.isArray(value)) {
-        const firstObject = value.find((entry) => entry && typeof entry === "object");
-        if (firstObject) return firstObject;
-      }
-      if (typeof value === "object") return value;
+    if (!item || typeof item !== "object" || !item[key]) continue;
+    const value = item[key];
+    if (Array.isArray(value)) {
+      const firstObject = value.find((entry) => entry && typeof entry === "object");
+      if (firstObject) return firstObject;
     }
+    if (typeof value === "object") return value;
   }
   return null;
 }
@@ -193,7 +160,6 @@ function formatPrice(value, currency = "BRL") {
     .replace(/\.(?=\d{3}(?:\D|$))/g, "")
     .replace(",", ".");
   const numeric = Number(normalized);
-
   if (!Number.isFinite(numeric)) return raw;
 
   try {
@@ -210,11 +176,9 @@ function formatPrice(value, currency = "BRL") {
 function extractArea(text) {
   const source = cleanText(text);
   if (!source) return "";
-
   const match = source.match(
     /(\d{1,3}(?:[.\s]\d{3})*(?:,\d+)?|\d+(?:[.,]\d+)?)\s*(m²|m2|metros? quadrados?|ha|hectares?|alqueires?)/i
   );
-
   return match ? `${match[1]} ${match[2]}` : "";
 }
 
@@ -235,16 +199,8 @@ function extractListingData($, pageUrl) {
 
   const rawPrice =
     cleanText(offers.price) ||
-    firstAttr($, [
-      'meta[property="product:price:amount"]',
-      'meta[itemprop="price"]'
-    ]) ||
-    firstText($, [
-      '[itemprop="price"]',
-      '[data-testid*="price"]',
-      '[class*="price"]',
-      '[class*="preco"]'
-    ]);
+    firstAttr($, ['meta[property="product:price:amount"]', 'meta[itemprop="price"]']) ||
+    firstText($, ['[itemprop="price"]', '[data-testid*="price"]', '[class*="price"]', '[class*="preco"]']);
 
   const currency =
     cleanText(offers.priceCurrency) ||
@@ -259,12 +215,7 @@ function extractListingData($, pageUrl) {
   if (!area) area = extractArea(`${titulo} ${descricao}`);
 
   const city = cleanText(address.addressLocality || address.addressRegion || "");
-  const district = cleanText(
-    address.addressDistrict ||
-    address.neighborhood ||
-    address.subLocality ||
-    ""
-  );
+  const district = cleanText(address.addressDistrict || address.neighborhood || address.subLocality || "");
 
   const imageCandidate =
     firstAttr($, ['meta[property="og:image"]', 'meta[name="twitter:image"]']) ||
@@ -298,19 +249,10 @@ function extractListingData($, pageUrl) {
   };
 }
 
-/*
-========================================
-ANALISAR IMÓVEL
-========================================
-*/
-
 app.post("/analisar-imovel", async (req, res) => {
   try {
     const { url } = req.body;
-
-    if (!url) {
-      return res.status(400).json({ erro: "URL não enviada" });
-    }
+    if (!url) return res.status(400).json({ erro: "URL não enviada" });
 
     console.log("🔎 Buscando imóvel:", url);
 
@@ -324,18 +266,12 @@ app.post("/analisar-imovel", async (req, res) => {
       },
     });
 
-    const html = response.data;
-    const $ = cheerio.load(html);
+    const $ = cheerio.load(response.data);
     const dados = extractListingData($, url);
 
     if (!dados.imagemUrl) {
-      return res.status(404).json({
-        erro: "Imagem não encontrada",
-        dados,
-      });
+      return res.status(404).json({ erro: "Imagem não encontrada", dados });
     }
-
-    console.log("🖼 Imagem encontrada:", dados.imagemUrl);
 
     const imageResponse = await axios.get(dados.imagemUrl, {
       responseType: "arraybuffer",
@@ -348,8 +284,7 @@ app.post("/analisar-imovel", async (req, res) => {
 
     const contentType = imageResponse.headers["content-type"] || "image/jpeg";
     const base64 =
-      `data:${contentType};base64,` +
-      Buffer.from(imageResponse.data).toString("base64");
+      `data:${contentType};base64,` + Buffer.from(imageResponse.data).toString("base64");
 
     return res.json({
       imagem: base64,
@@ -363,7 +298,6 @@ app.post("/analisar-imovel", async (req, res) => {
     });
   } catch (error) {
     console.error("❌ Erro:", error.message);
-
     return res.status(500).json({
       erro: "Erro ao analisar o imóvel",
       detalhe: process.env.NODE_ENV === "development" ? error.message : undefined,
@@ -371,14 +305,7 @@ app.post("/analisar-imovel", async (req, res) => {
   }
 });
 
-/*
-========================================
-PORTA PARA RENDER
-========================================
-*/
-
 const PORT = process.env.PORT || 3000;
-
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`🚀 Servidor rodando na porta ${PORT}`);
 });
