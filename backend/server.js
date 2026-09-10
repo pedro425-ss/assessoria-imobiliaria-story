@@ -41,9 +41,10 @@ app.get("/script.js", (req, res) => {
     const extrasScript = fs.readFileSync(path.join(frontendDir, "extras.js"), "utf8");
     const storySetScript = fs.readFileSync(path.join(frontendDir, "story-set.js"), "utf8");
     const autofillScript = fs.readFileSync(path.join(frontendDir, "autofill.js"), "utf8");
+    const templatesScript = fs.readFileSync(path.join(frontendDir, "templates.js"), "utf8");
 
     return res.send(
-      `${mainScript}\n\n/* Recursos avançados */\n${extrasScript}\n\n/* Pacote de 3 Stories */\n${storySetScript}\n\n/* Preenchimento automático */\n${autofillScript}`
+      `${mainScript}\n\n/* Recursos avançados */\n${extrasScript}\n\n/* Pacote de 3 Stories */\n${storySetScript}\n\n/* Preenchimento automático */\n${autofillScript}\n\n/* Modelos de Story */\n${templatesScript}`
     );
   } catch (error) {
     console.error("❌ Erro ao montar script do frontend:", error.message);
