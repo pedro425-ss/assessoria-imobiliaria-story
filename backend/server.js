@@ -44,9 +44,10 @@ app.get("/script.js", (req, res) => {
     const templatesScript = fs.readFileSync(path.join(frontendDir, "templates.js"), "utf8");
     const workflowScript = fs.readFileSync(path.join(frontendDir, "workflow.js"), "utf8");
     const exportFormatsScript = fs.readFileSync(path.join(frontendDir, "export-formats.js"), "utf8");
+    const propertiesScript = fs.readFileSync(path.join(frontendDir, "properties.js"), "utf8");
 
     return res.send(
-      `${mainScript}\n\n/* Recursos avançados */\n${extrasScript}\n\n/* Pacote de 3 Stories */\n${storySetScript}\n\n/* Preenchimento automático */\n${autofillScript}\n\n/* Modelos de Story */\n${templatesScript}\n\n/* Rascunhos e histórico */\n${workflowScript}\n\n/* Exportação Feed e Quadrado */\n${exportFormatsScript}`
+      `${mainScript}\n\n/* Recursos avançados */\n${extrasScript}\n\n/* Pacote de 3 Stories */\n${storySetScript}\n\n/* Preenchimento automático */\n${autofillScript}\n\n/* Modelos de Story */\n${templatesScript}\n\n/* Rascunhos e histórico */\n${workflowScript}\n\n/* Exportação Feed e Quadrado */\n${exportFormatsScript}\n\n/* Painel de imóveis salvos */\n${propertiesScript}`
     );
   } catch (error) {
     console.error("❌ Erro ao montar script do frontend:", error.message);
